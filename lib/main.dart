@@ -1,9 +1,9 @@
-import 'package:account/model/transactionItem.dart';
-import 'package:account/provider/transactionProvider.dart';
 import 'package:flutter/material.dart';
-import 'formScreen.dart';
-import 'package:account/editScreen.dart';
 import 'package:provider/provider.dart';
+import 'package:account/model/university_item.dart';
+import 'package:account/provider/university_provider.dart';
+import 'package:account/screens/form_screen.dart';
+import 'package:account/screens/edit_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,23 +12,23 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (context) {
-            return TransactionProvider();
-          })
-        ],
-        child: MaterialApp(
-          title: 'Flutter Demo',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-          home: const MyHomePage(title: 'Flutter Demo Home Page'),
-        ));
+      providers: [
+        ChangeNotifierProvider(create: (context) => UniversityProvider()),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'University Rankings',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          useMaterial3: true,
+          textTheme: Typography.blackCupertino,
+        ),
+        home: const MyHomePage(title: 'University Rankings'),
+      ),
+    );
   }
 }
 
@@ -45,111 +45,113 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-
-    TransactionProvider provider =
-        Provider.of<TransactionProvider>(context, listen: false);
-    provider.initData();
+    Provider.of<UniversityProvider>(context, listen: false).initData();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: Text(widget.title),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) {
-                  return FormScreen();
-                }));
-              },
-            ),
-          ],
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: Text(
+          widget.title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
         ),
-        body: Consumer(
-          builder: (context, TransactionProvider provider, Widget? child) {
-            int itemCount = provider.transactions.length;
-            if (itemCount == 0) {
-              return Center(
-                child: Text(
-                  'ไม่มีรายการ',
-                  style: TextStyle(fontSize: 50),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => FormScreen()));
+            },
+          ),
+        ],
+      ),
+      body: Consumer<UniversityProvider>(
+        builder: (context, provider, child) {
+          if (provider.universities.isEmpty) {
+            return const Center(
+              child: Text(
+                'ไม่มีมหาวิทยาลัย',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.grey),
+              ),
+            );
+          }
+          return ListView.builder(
+            itemCount: provider.universities.length,
+            padding: const EdgeInsets.all(12),
+            itemBuilder: (context, index) {
+              UniversityItem university = provider.universities[index];
+              return Dismissible(
+                key: Key(university.keyID.toString()),
+                direction: DismissDirection.endToStart,
+                onDismissed: (direction) {
+                  provider.deleteUniversity(university);
+                },
+                background: Container(
+                  color: Colors.redAccent,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Icon(Icons.delete, color: Colors.white, size: 30),
+                ),
+                child: Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    title: Text(
+                      '${university.rank}. ${university.name}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          university.country,
+                          style: const TextStyle(fontSize: 16, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'คะแนน: ${university.score.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.deepOrange,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.indigo,
+                      child: Text(
+                        university.rank.toString(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.indigo),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => EditScreen(university: university)),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               );
-            } else {
-              return ListView.builder(
-                  itemCount: itemCount,
-                  itemBuilder: (context, int index) {
-                    TransactionItem data = provider.transactions[index];
-                    return Dismissible(
-                      key: Key(data.keyID.toString()),
-                      direction: DismissDirection.horizontal,
-                      onDismissed: (direction) {
-                        provider.deleteTransaction(data);
-                      },
-                      background: Container(
-                        color: Colors.red,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.edit, color: Colors.white),
-                      ),
-                      child: Card(
-                        elevation: 3,
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 12),
-                        child: ListTile(
-                            title: Text(data.title),
-                            subtitle: Text(
-                                'วันที่บันทึกข้อมูล: ${data.date?.toIso8601String()}',
-                                style: TextStyle(fontSize: 10)),
-                            leading: CircleAvatar(
-                              child: FittedBox(
-                                child: Text(data.amount.toString()),
-                              ),
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text('ยืนยันการลบ'),
-                                      content:
-                                          Text('คุณต้องการลบรายการใช่หรือไม่?'),
-                                      actions: [
-                                        TextButton(
-                                          child: Text('ยกเลิก'),
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                        ),
-                                        TextButton(
-                                          child: Text('ลบรายการ'),
-                                          onPressed: () {
-                                            provider.deleteTransaction(data);
-                                            Navigator.of(context).pop();
-                                          },
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                            onTap: () {
-                              Navigator.push(context,
-                                  MaterialPageRoute(builder: (context) {
-                                return EditScreen(item: data);
-                              }));
-                            }),
-                      ),
-                    );
-                  });
-            }
-          },
-        ));
+            },
+          );
+        },
+      ),
+    );
   }
-}
+} 
+
